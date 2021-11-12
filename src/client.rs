@@ -1,8 +1,10 @@
 use std::collections::VecDeque;
 use std::{cell::RefCell, fmt, future::Future, pin::Pin, rc::Rc, task::Context, task::Poll};
 
-use loony::util::{poll_fn, Either, Ready};
+use loony::util::{poll_fn, Either, Ready };
 use loony::{channel::pool, framed::State, service::Service};
+use loony::service::Transform;
+use loony::web::{ WebRequest, WebResponse, ErrorRenderer };
 
 use super::cmd::Command;
 use super::codec::{Codec, Request, Response};
@@ -129,6 +131,73 @@ impl fmt::Debug for Client {
             .finish()
     }
 }
+
+impl<S, Err> Transform<S> for Client
+where
+    S: Service<Request = WebRequest<Err>, Response = WebResponse>,
+    S::Future: 'static,
+    Err: ErrorRenderer,
+    Err::Container: From<S::Error>,
+    // CorsError: WebResponseError<Err>,
+{
+    // type Request = WebRequest<Err>;
+    // type Response = WebResponse;
+    // type Error = S::Error;
+    // type InitError = ();
+    // type Transform = CorsMiddleware<S>;
+    // type Future = Ready<Result<CorsMiddleware<S>, ()>>;
+    type Service = ClientMiddleware<S>;
+
+    fn new_transform(&self, service: S) -> Self::Service { // Self::Future
+        ClientMiddleware {
+            state: self.state.clone(),
+            queue: self.queue.clone(),
+            pool: self.pool.clone(),
+            service
+        }
+    }
+}
+
+
+
+/// `Middleware` for Cross-origin resource sharing support
+///
+/// The Cors struct contains the settings for CORS requests to be validated and
+/// for responses to be generated.
+#[derive(Clone)]
+pub struct ClientMiddleware<S> {
+    state: State,
+    queue: Queue,
+    pool: pool::Pool<Result<Response, Error>>,
+    service: S
+}
+
+impl<S, Err> Service for ClientMiddleware<S>
+where
+    S: Service<Request = WebRequest<Err>, Response = WebResponse>,
+    S::Future: 'static,
+    Err: ErrorRenderer,
+    Err::Container: From<S::Error>,
+    // CorsError: WebResponseError<Err>,
+{
+    type Request = WebRequest<Err>;
+    type Response = WebResponse;
+    type Error = S::Error;
+    type Future = S::Future;
+
+    fn poll_ready(&self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.service.poll_ready(cx)
+    }
+
+    fn poll_shutdown(&self, cx: &mut Context<'_>, is_error: bool) -> Poll<()> {
+        self.service.poll_shutdown(cx, is_error)
+    }
+
+    fn call(&self, req: WebRequest<Err>) -> Self::Future {
+        self.service.call(req)
+    }
+}
+
 
 pub struct CommandResult {
     rx: pool::Receiver<Result<Response, Error>>,
