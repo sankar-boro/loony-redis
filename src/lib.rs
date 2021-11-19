@@ -35,6 +35,8 @@ pub mod codec;
 mod connector;
 pub mod errors;
 mod simple;
+mod session;
+mod redis;
 // mod transport;
 
 pub use self::client::{Client, CommandResult};
@@ -86,3 +88,31 @@ pub fn gen_random_key() -> String {
         .collect();
     key
 }
+
+pub use redis::{Command, RedisActor};
+use derive_more::{Display, Error, From};
+
+#[cfg(feature = "web")]
+pub use loony::cookie::SameSite;
+#[cfg(feature = "web")]
+pub use session::RedisSession;
+
+/// General purpose actix redis error
+#[derive(Debug, Display, Error, From)]
+pub enum Error {
+    #[display(fmt = "Redis error {}", _0)]
+    Redis(redis_async::error::Error),
+    /// Receiving message during reconnecting
+    #[display(fmt = "Redis: Not connected")]
+    NotConnected,
+    /// Cancel all waters when connection get dropped
+    #[display(fmt = "Redis: Disconnected")]
+    Disconnected,
+}
+
+#[cfg(feature = "web")]
+impl loony::http::ResponseError for Error {}
+
+// re-export
+pub use redis_async::error::Error as RespError;
+pub use redis_async::resp::RespValue;

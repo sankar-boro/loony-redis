@@ -8,25 +8,48 @@ repository = "https://github.com/loony-rs/loony-redis.git"
 categories = ["network-programming"]
 keywords = ["loony", "redis"]
 license = "MIT"
-exclude = [".gitignore", ".travis.yml", ".cargo/config"]
-edition = "2018"
+edition = "2021"
 
 [features]
-default = []
+default = ["web"]
+
+web = [
+    "loony/cookies",
+    # "loony/secure-cookies",
+    # "loony-session/cookie-session",
+    "rand",
+    "serde",
+    "serde_json"
+]
 
 # openssl
 openssl = ["loony/openssl"]
 
 # rustls support
-rustls = ["loony/rustls"]
+# rustls = ["loony/rustls"]
 
 [dependencies]
-loony = { git="https://github.com/sankar-boro/loony" }
-itoa = "0.4.5"
+actix = "0.12.0"
+loony = { git="https://github.com/sankar-boro/loony"}
+loony-session = { git="https://github.com/sankar-boro/loony-extras" }
+loony-rt = { git="https://github.com/sankar-boro/loony" }
+itoa = "0.4.8"
 btoi = "0.4.2"
-log = "0.4"
-derive_more = "0.99"
-futures = "0.3.13"
+log = "0.4.14"
+derive_more = "0.99.16"
+futures = "0.3.17"
+time = "0.3.5"
+
+backoff = "0.3.0"
+futures-core = "0.3.17"
+redis2 = { package = "redis", version = "0.21.4", features = ["tokio-comp", "tokio-native-tls-comp"] }
+redis-async = { version = "0.12.0", default-features = false, features = ["tokio10"] }
+tokio = { version = "1.14.0", features = ["sync"] }
+tokio-util = "0.6.9"
+
+rand = { version = "0.8.0", optional = true }
+serde = { version = "1.0.130", optional = true }
+serde_json = { version = "1.0.71", optional = true }
 
 [dev-dependencies]
 rand = "0.8"
